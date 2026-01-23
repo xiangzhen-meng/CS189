@@ -1,0 +1,15 @@
+.DS_Store
+.vscode
+*.pyc
+__pycache__
+*.pyo
+*.pyd
+*.npy
+*.npz
+*.aux
+*.log
+*.out
+*.toc
+*.txt
+*.jpg
+*.png
