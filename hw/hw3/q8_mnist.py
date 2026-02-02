@@ -185,7 +185,7 @@ ax.set_ylabel("validation accuracy")
 plt.savefig("./pics/q8-3a.png")
 plt.show()
 
-""" # QDA Test
+# QDA Test
 vali_rate = []
 for pts in training_pts:
     cur_data = data_train[:pts]
@@ -206,7 +206,7 @@ ax.set_title("QDA Validation Accuracy vs Training Size")
 ax.set_xlabel("number of training examples")
 ax.set_ylabel("validation accuracy")
 plt.savefig("./pics/q8-3b.png")
-plt.show() """
+plt.show()
 
 # ******* Test *******
 test_data = L2_normalization(test_data)
