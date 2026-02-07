@@ -119,26 +119,39 @@ class BoostedRandomForest(RandomForest):
         pass
 
 
-def preprocess(data, fill_mode=True, min_freq=10, onehot_cols=[]):
+def preprocess(data, fill_mode=True, min_freq=10, onehot_cols=[], fixed_onehot=None):
     # fill_mode = False
 
     # Temporarily assign -1 to missing data
     data[data == b''] = '-1'
+    data[data == ''] = '-1'
 
     # Hash the columns (used for handling strings)
     onehot_encoding = []
     onehot_features = []
-    for col in onehot_cols:
-        counter = Counter(data[:, col])
-        for term in counter.most_common():
-            if term[0] == b'-1':
-                continue
-            if term[-1] <= min_freq:
-                break
-            onehot_features.append(term[0])
-            onehot_encoding.append((data[:, col] == term[0]).astype(float))
-        data[:, col] = '0'
+    if fixed_onehot is not None:
+        # Use the exact same (col, feature) pairs from training
+        onehot_map = fixed_onehot
+        for col, feat in fixed_onehot:
+            onehot_features.append(feat)
+            onehot_encoding.append((data[:, col] == feat).astype(float))
+        for col in onehot_cols:
+            data[:, col] = '0'
+    else:
+        onehot_map = []
+        for col in onehot_cols:
+            counter = Counter(data[:, col])
+            for term in counter.most_common():
+                if term[0] == b'-1':
+                    continue
+                if term[-1] <= min_freq:
+                    break
+                onehot_features.append(term[0])
+                onehot_encoding.append((data[:, col] == term[0]).astype(float))
+                onehot_map.append((col, term[0]))
+            data[:, col] = '0'
     onehot_encoding = np.array(onehot_encoding).T
+    assert not np.any(data == '')
     data = np.hstack(
         [np.array(data, dtype=float),
          np.array(onehot_encoding)])
@@ -147,10 +160,20 @@ def preprocess(data, fill_mode=True, min_freq=10, onehot_cols=[]):
     # the mean or median because this makes more sense for categorical
     # features such as gender or cabin type, which are not ordered.
     if fill_mode:
-        # TODO
-        pass
-
-    return data, onehot_features
+        for j in range(data.shape[1]):
+            col = data[:, j]
+            missing = (col == -1)
+            if not np.any(missing):
+                continue
+            value, count = np.unique(col[~missing], return_counts=True)
+            mode = value[np.argmax(count)]
+            col[missing] = mode
+            
+    assert not (data == -1).any()
+    assert data.dtype == float
+    assert not np.isnan(data).any()
+    
+    return data, onehot_features, onehot_map
 
 
 def evaluate(clf):
@@ -185,9 +208,9 @@ if __name__ == "__main__":
         labeled_idx = np.where(y != b'')[0]
         y = np.array(y[labeled_idx], dtype=float).astype(int)
         print("\n\nPart (b): preprocessing the titanic dataset")
-        X, onehot_features = preprocess(data[1:, 1:], onehot_cols=[1, 5, 7, 8])
+        X, onehot_features, onehot_map = preprocess(data[1:, 1:], onehot_cols=[1, 5, 7, 8])
         X = X[labeled_idx, :]
-        Z, _ = preprocess(test_data[1:, :], onehot_cols=[1, 5, 7, 8])
+        Z, _, _ = preprocess(test_data[1:, :], onehot_cols=[1, 5, 7, 8], fixed_onehot=onehot_map)
         assert X.shape[1] == Z.shape[1]
         features = list(data[0, 1:]) + onehot_features
 
