@@ -31,13 +31,39 @@ class DecisionTree:
 
     @staticmethod
     def entropy(y):
-        # TODO
-        pass
+        """
+        A method that takes in the labels of data stored at a node 
+        and compute the entropy
+        """
+        if len(y) == 0:
+            return 0
+        value, count = np.unique(y, return_counts=True)
+        if np.any(count == len(y)):
+            return 0
+        p = count / len(y)
+        return np.sum(-p * np.log2(p))
 
     @staticmethod
     def information_gain(X, y, thresh):
-        # TODO
-        return np.random.rand()
+        """
+        A method that takes in some feature of the data, 
+        the labels and a threshold, and compute the information gain 
+        of a split using the threshold.
+        X: features
+        y: labels
+        thresh: threshold
+        """
+        n = len(y)
+        left = (X < thresh)
+        right = (X >= thresh)
+        lft_lab, rgt_lab = y[left], y[right]
+        if len(lft_lab) == 0 or len(rgt_lab) == 0:
+            return 0
+        pnt_ent = DecisionTree.entropy(y)
+        lft_w, rgt_w = len(lft_lab) / n, len(rgt_lab) / n
+        lft_ent, rgt_ent = DecisionTree.entropy(lft_lab), DecisionTree.entropy(rgt_lab)
+        child_ent = lft_w * lft_ent + rgt_w * rgt_ent
+        return pnt_ent - child_ent
 
     @staticmethod
     def gini_impurity(X, y, thresh):
@@ -48,6 +74,15 @@ class DecisionTree:
     def gini_purification(X, y, thresh):
         # TODO
         pass
+    
+    def should_stop(self, X, y):
+        if self.max_depth == 0:
+            return True
+        if len(y) == 0:
+            return True
+        if DecisionTree.entropy(y) <= eps:
+            return True
+        return False
 
     def split(self, X, y, idx, thresh):
         X0, idx0, X1, idx1 = self.split_test(X, idx=idx, thresh=thresh)
@@ -61,12 +96,66 @@ class DecisionTree:
         return X0, idx0, X1, idx1
 
     def fit(self, X, y):
-        # TODO
-        pass
+        if self.should_stop(X, y):
+            self.data = X
+            value, count = np.unique(y, return_counts=True)
+            self.pred = value[np.argmax(count)]
+            return self
+        
+        n, d = X.shape
+        Best_IG = 0.0
+        Best_feat = 0
+        Best_thresh = 0.0
+        for j in range(d):
+            feature = X[:, j]
+            sorted_feature = np.unique(feature)
+            sorted_feature = np.sort(sorted_feature, kind='heapsort')
+
+            for i in range(len(sorted_feature) - 1):
+                thresh = (sorted_feature[i] + sorted_feature[i+1]) / 2
+                IG = DecisionTree.information_gain(feature, y, thresh)
+                if IG > Best_IG:
+                    Best_IG = IG
+                    Best_feat = j
+                    Best_thresh = thresh
+        # should stop implementation
+        if Best_IG <= 0:
+            self.data = X
+            value, count = np.unique(y, return_counts=True)
+            self.pred = value[np.argmax(count)]
+            return self
+        
+        self.split_idx = Best_feat
+        self.thresh = Best_thresh
+        X0, y0, X1, y1 = self.split(X, y, self.split_idx, self.thresh)
+        self.left = DecisionTree(max_depth=self.max_depth-1)
+        self.right = DecisionTree(max_depth=self.max_depth-1)
+        self.left.fit(X0, y0)
+        self.right.fit(X1, y1)
+
+    def is_leaf(self):
+        return self.left is None and self.right is None
+
+    def single_predict(self, X):
+        if self.is_leaf():
+            return self.pred
+        if X[self.split_idx] < self.thresh:
+            return self.left.single_predict(X)
+        else:
+            return self.right.single_predict(X)
 
     def predict(self, X):
-        # TODO
-        pass
+        """
+        predict(data): Given a data point, traverse the tree 
+        to find the best label to classify the data point as. 
+        Start at the root node you stored and evaluate split rules 
+        at each node as you traverse until you reach a leaf node, 
+        then choose that leaf node's label as your output label.
+        """
+        n = X.shape[0]
+        y_pred = [self.single_predict(X[i, :]) for i in range(n)]
+        y_pred = np.array(y_pred)
+        return y_pred
 
     def __repr__(self):
         if self.max_depth == 0:
