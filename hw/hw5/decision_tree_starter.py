@@ -179,12 +179,21 @@ class BaggedTrees(BaseEstimator, ClassifierMixin):
         ]
 
     def fit(self, X, y):
-        # TODO
-        pass
+        n, d = X.shape
+        for i in range(self.n):
+            indices = np.random.choice(n, size=n, replace=True)
+            X_boot = X[indices]
+            y_boot = y[indices]
+            self.decision_trees[i].fit(X_boot, y_boot)
+        return self
 
     def predict(self, X):
-        # TODO
-        pass
+        preds = np.array([tree.predict(X) for tree in self.decision_trees])
+        y_pred = []
+        for j in range(preds.shape[1]):
+            values, counts = np.unique(preds[:, j], return_counts=True)
+            y_pred.append(values[np.argmax(counts)])
+        return np.array(y_pred)
 
 
 class RandomForest(BaggedTrees):
@@ -343,4 +352,17 @@ if __name__ == "__main__":
     graph = graph_from_dot_data(out.getvalue())
     graph_from_dot_data(out.getvalue())[0].write_pdf("%s-tree.pdf" % dataset)
     
-    # TODO
+    # sklearn random forest
+    print("\n\nsklearn's random forest")
+    rf = RandomForest(params=params, n=200, m=3)
+    rf.fit(X, y)
+    evaluate(rf)
+    
+    """
+    # my decision tree test
+    tree = DecisionTree(max_depth=3, feature_labels=features)
+    tree.fit(X, y)
+    y_pred_training = tree.predict(X)
+    training_ACC = np.mean(y == y_pred_training)
+    print(f"training accuracy: {training_ACC}")
+    """
